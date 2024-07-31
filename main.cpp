@@ -1,5 +1,6 @@
 #include "utf.hpp"
 #include "format.hpp"
+#include "stdout.hpp"
 #include <iostream>
 
 int main()
@@ -31,7 +32,7 @@ int main()
     // Emoji: "😀🌍"
     auto emoji2 = u8"😀🌍"; // Byte length: 8, Code point length: 2
 
-    hls::PrinterSink sink;
+    hls::PrinterSink sink(hls::Encoding::UTF8);
 
     hls::format_to_sink(english, sink);
 

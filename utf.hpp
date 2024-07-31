@@ -1,9 +1,11 @@
 #ifndef _UTF_HPP_
 #define _UTF_HPP_
 
+#ifdef __STDC_HOSTED__
 #include <stdint.h>
 #include <stddef.h>
-#include <iostream>
+#endif
+
 #include "result.hpp"
 
 namespace hls

@@ -2,12 +2,14 @@
 #define _STDOUT_HPP_
 
 #include "format.hpp"
-#include "stream.hpp"
 #include "utf.hpp"
-
 
 namespace hls
 {
+    using byte = unsigned char;
+    static constexpr size_t STREAM_SINK_PRINTER_BUFFER_SIZE = 128;
+    
+    extern "C" void printstr(const void* str, size_t byte_size);
 
     class PrinterSink : public StreamSink<PrinterSink>
     {
@@ -18,14 +20,15 @@ namespace hls
         
         void erase_buffer()
         {
-            for(size_t i = 0; i < sizeof(m_buffer); ++i)
-                m_buffer[i] = 0;
+            for(size_t i = 0; i < sizeof(m_buffer)/4; ++i)
+                *((uint32_t*)(m_buffer + 4)) = 0;
             
             m_available_size = sizeof(STREAM_SINK_PRINTER_BUFFER_SIZE);
         }
 
         bool open_sink_impl() {
             erase_buffer();
+            return true;
         }
 
         bool close_sink_impl() {
@@ -33,20 +36,17 @@ namespace hls
             // If this is true, that means our buffer is not free, thus we should print the remaining characters.
             if(m_available_size != STREAM_SINK_PRINTER_BUFFER_SIZE)
             {
-
+                //TODO: implement
             }
+            return true;
         }
 
         bool receive_data_impl(char32_t data)
         {
-            char buffer[5] = {0,0,0,0,0};
+            byte buffer[5] = {0,0,0,0,0};
 
             encode_char(data, (char8_t*)(buffer), 4);
-
             buffer[4] = 0;
-
-            std::cout << buffer;
-
             return true;
         }
 

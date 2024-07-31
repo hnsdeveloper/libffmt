@@ -1,43 +1,42 @@
+#ifndef _FORMAT_HPP_
+#define _FORMAT_HPP_
+
+#ifdef __STDC_HOSTED__
 #include <stdint.h>
 #include <stddef.h>
+#endif
+
 #include "result.hpp"
 #include "utf.hpp"
-
+#include "stream.hpp"
 
 namespace hls
 {
-
-    static constexpr size_t STREAM_SINK_PRINTER_BUFFER_SIZE = 128;
-    using byte = unsigned char;
-
-    template<typename SinkImpl>
-    class StreamSink
-    {   
-
-        protected:
-
-        // Cannot be deleted through a pointer to the base type, thus we avoid a vtable
-        // By not having to define a virtual destructor
-        ~StreamSink() = default;
+   
+    class FormatSpecifier
+    {
+        const char32_t m_initial_code_point;
+        bool m_is_literal;
+        
 
         public:
-
-        auto open_sink()
+        template<typename CharType>
+        FormatSpecifier(const CharType* str, char32_t initial_codepoint) : m_initial_code_point(initial_codepoint)
         {
-            return static_cast<SinkImpl*>(this)->open_sink_impl();
-        }
 
-        auto receive_data(char32_t data)
-        {
-            return static_cast<SinkImpl*>(this)->receive_data_impl(data);
-        }
+        };
 
-        auto close_sink()
+        bool is_literal() const
         {
-            return static_cast<SinkImpl*>(this)->close_sink_impl();
+
         }
     };
-    
+
+    template<typename CharType>
+    Result<FormatSpecifier> get_format(const CharType*, char32_t codepoint);
+
+
+    // TODO: Handle error values properly
     template<typename CharType, typename SinkImpl, typename ...Args>
     Result<size_t> format_to_sink(const CharType* str, StreamSink<SinkImpl>& stream, const Args&&... args)
     {
@@ -50,13 +49,39 @@ namespace hls
                 if(result.is_error())
                     break;
                 auto codepoint = result.get_value();
-                stream.receive_data(codepoint);
+                // If we find any character other than { or }, we are good, given that it is a text character
+                // Otherwise we have to handle it first
+                if(codepoint == '{' || codepoint == '}')
+                {
+                    auto fspecresult = get_format(str);
+                    // We don't have a valid format specifier, thus we don't keep going
+                    if(fspecresult.is_error())
+                        return fspecresult.get_error();
+                    auto& format_spec = fspecresult.get_value();
+                    if(format_spec.is_literal())
+                    {
+                        stream.receive_data(codepoint);
+                    }
+                    else
+                    {
+                        // TODO: handle formatting
+                    }
+                    
+                }
+                else
+                {
+                    stream.receive_data(codepoint);
+                }
+
                 if(codepoint == 0)
                     break;
             }
             stream.close_sink();
         }
 
+        // TODO: Change return value
         return value(size_t(0));
     }
 }
+
+#endif
