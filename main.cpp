@@ -34,6 +34,5 @@ int main()
 
     hls::PrinterSink sink(hls::Encoding::UTF8);
 
-    hls::format_to_sink(english, sink);
-
+    hls::format_string_to_sink(english, sink);
 }

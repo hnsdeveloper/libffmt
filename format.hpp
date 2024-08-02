@@ -4,6 +4,7 @@
 #ifdef __STDC_HOSTED__
 #include <stdint.h>
 #include <stddef.h>
+#include <utility>
 #endif
 
 #include "result.hpp"
@@ -12,76 +13,67 @@
 
 namespace hls
 {
-   
-    class FormatSpecifier
+
+    constexpr char32_t op_format_ch = '{';
+    constexpr char32_t cl_format_ch = '}';
+
+    bool isspace(char32_t codepoint)
     {
-        const char32_t m_initial_code_point;
-        bool m_is_literal;
-        
+        // TODO: extend to tab character and other spacing characters
+        return codepoint == 0x20;
+    }
 
-        public:
-        template<typename CharType>
-        FormatSpecifier(const CharType* str, char32_t initial_codepoint) : m_initial_code_point(initial_codepoint)
+    bool isdigit(char32_t codepoint)
+    {
+        return codepoint >= '0' && codepoint <= '9';
+    }
+
+    template <typename CharType>
+    Result<uint64_t> atou(const CharType *str)
+    {
+        if (str)
         {
+            auto peekresult = peek_next_codepoint(str);
+            if (!(peekresult.is_error() || !isdigit(peekresult.get_value())))
+            {
+                uint64_t number = 0;
+                for (auto result = get_next_codepoint(&str); !result.is_error() && isdigit(result.get_value());
+                     result = get_next_codepoint(&str))
+                {
+                    number = number * 10 + result.get_value();
+                }
 
-        };
-
-        bool is_literal() const
-        {
-
+                return value(number);
+            }
         }
-    };
 
-    template<typename CharType>
-    Result<FormatSpecifier> get_format(const CharType*, char32_t codepoint);
+        return error<uint64_t>(Error::INVALID_ARGUMENT);
+    }
 
+    template <typename CharType>
+    Result<uint64_t> atoi(const CharType *str)
+    {
+        uint64_t number = 0;
+    }
+
+    template <typename CharType, typename SinkImpl, typename... Args>
+    Result<CharType *> format_arg_to_sink(const CharType *format_specifier, StreamSink<SinkImpl> &, const Args &...args)
+    {
+    }
 
     // TODO: Handle error values properly
-    template<typename CharType, typename SinkImpl, typename ...Args>
-    Result<size_t> format_to_sink(const CharType* str, StreamSink<SinkImpl>& stream, const Args&&... args)
+    template <typename CharType, typename SinkImpl, typename... Args>
+    Result<size_t> format_string_to_sink(UTFStringView<CharType> str, StreamSink<SinkImpl> &sink, const Args &...args)
     {
-        if(str)
+        sink.open_sink();
+        for(auto it = str.begin(); it != str.end(); ++it)
         {
-            stream.open_sink();
-            while(true)
-            {
-                auto result = get_next_codepoint(&str);
-                if(result.is_error())
-                    break;
-                auto codepoint = result.get_value();
-                // If we find any character other than { or }, we are good, given that it is a text character
-                // Otherwise we have to handle it first
-                if(codepoint == '{' || codepoint == '}')
-                {
-                    auto fspecresult = get_format(str);
-                    // We don't have a valid format specifier, thus we don't keep going
-                    if(fspecresult.is_error())
-                        return fspecresult.get_error();
-                    auto& format_spec = fspecresult.get_value();
-                    if(format_spec.is_literal())
-                    {
-                        stream.receive_data(codepoint);
-                    }
-                    else
-                    {
-                        // TODO: handle formatting
-                    }
-                    
-                }
-                else
-                {
-                    stream.receive_data(codepoint);
-                }
-
-                if(codepoint == 0)
-                    break;
-            }
-            stream.close_sink();
+            // TODO: IMPLEMENT
         }
-
+        sink.close_sink();
         // TODO: Change return value
         return value(size_t(0));
     }
-}
+} // namespace hls
 
 #endif

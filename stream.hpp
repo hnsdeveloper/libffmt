@@ -9,35 +9,33 @@ namespace std = hls;
 
 namespace hls
 {
-    template<typename SinkImpl>
+    template <typename SinkImpl>
     class StreamSink
-    {   
+    {
 
-        protected:
-
+      protected:
         // Cannot be deleted through a pointer to the base type, thus we avoid a vtable
         // By not having to define a virtual destructor
         ~StreamSink() = default;
 
-        public:
-
+      public:
         auto open_sink()
         {
-            return static_cast<SinkImpl*>(this)->open_sink_impl();
+            return static_cast<SinkImpl *>(this)->open_sink_impl();
         }
 
-        template<typename DataType, typename ...CtxArgs>
-        auto receive_data(DataType&& data, CtxArgs&&... ctx_args)
+        template <typename DataType, typename... CtxArgs>
+        auto receive_data(DataType &&data, CtxArgs &&...ctx_args)
         {
-            return static_cast<SinkImpl*>(this)->receive_data_impl(std::forward<DataType>(data), std::forward<CtxArgs>(ctx_args)...);
+            return static_cast<SinkImpl *>(this)->receive_data_impl(std::forward<DataType>(data),
+                                                                    std::forward<CtxArgs>(ctx_args)...);
         }
 
         auto close_sink()
         {
-            return static_cast<SinkImpl*>(this)->close_sink_impl();
+            return static_cast<SinkImpl *>(this)->close_sink_impl();
         }
     };
-}
-
+} // namespace hls
 
 #endif
