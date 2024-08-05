@@ -2,7 +2,7 @@
 #define _STRING_HPP_
 
 #include <type_traits>
-#include "utf.hpp"
+#include "utfstring.hpp"
 
 namespace hls
 {
@@ -64,7 +64,7 @@ namespace hls
 
             ~UTFStringViewIterator() = default;
 
-            char32_t operator*()
+            char32_t operator*() const
             {
                 if (m_curr_ptr >= m_begin_ptr && m_curr_ptr <= m_end_ptr)
                     return peek_next_codepoint(m_curr_ptr).get_value();
@@ -122,15 +122,23 @@ namespace hls
                 return *this;
             }
 
-            bool operator==(const UTFStringViewIterator &other)
+            bool operator==(const UTFStringViewIterator &other) const
             {
                 return m_begin_ptr == other.m_begin_ptr && m_curr_ptr == other.m_curr_ptr &&
                        m_end_ptr == other.m_end_ptr;
             }
 
-            bool operator!=(const UTFStringViewIterator &other)
+            bool operator!=(const UTFStringViewIterator &other) const
             {
                 return !(*this == other);
+            }
+
+            UTFStringView from_it() const
+            {
+                if (m_curr_ptr >= m_begin_ptr && m_curr_ptr <= m_end_ptr)
+                    return UTFStringView(m_curr_ptr);
+
+                return UTFStringView(reinterpret_cast<CharType *>(nullptr));
             }
 
             friend class UTFStringView;

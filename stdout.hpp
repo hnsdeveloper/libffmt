@@ -2,7 +2,7 @@
 #define _STDOUT_HPP_
 
 #include "format.hpp"
-#include "utf.hpp"
+#include "utfstringview.hpp"
 #include <iostream>
 
 namespace hls

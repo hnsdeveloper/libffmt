@@ -8,9 +8,9 @@
 #endif
 
 #include "result.hpp"
-#include "utf.hpp"
+#include "utfstring.hpp"
 #include "stream.hpp"
-#include "string.hpp"
+#include "utfstringview.hpp"
 
 namespace hls
 {
@@ -43,6 +43,8 @@ namespace hls
             {
                 if ((digit_started = isdigit(c)))
                     nmb = c - '0';
+                else if (isspace(c))
+                    continue;
                 else
                     return error<uint64_t>(Error::INVALID_ARGUMENT);
             }
@@ -74,6 +76,8 @@ namespace hls
                     sign = sign * -1;
                 else if ((digit_started = isdigit(c)))
                     nmb = c - '0';
+                else if (isspace(c))
+                    continue;
                 else
                     return error<int64_t>(Error::INVALID_ARGUMENT);
             }

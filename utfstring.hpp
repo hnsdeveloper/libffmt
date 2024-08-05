@@ -172,7 +172,8 @@ namespace hls
             if (sz >= dest_byte_size || cp == 0)
             {
                 // No space for the null character if we keep encoding, thus we add it manually and finish
-                // If we only have 7 bytes available, we can't encode utf32 last byte
+                // If we only have 7 bytes available, we can't encode a nullbyte on utf32
+                // TODO: FIX BUG
                 *((unsigned char *)(dest)) = 0;
                 return value(retval);
             }
