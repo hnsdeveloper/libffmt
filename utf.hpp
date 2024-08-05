@@ -33,6 +33,21 @@ namespace hls
         return get_next_codepoint(&str);
     }
 
+    template <typename CharType>
+    hls::Result<char32_t> get_previous_codepoint(const CharType **str);
+    template <>
+    hls::Result<char32_t> get_previous_codepoint<char8_t>(const char8_t **str);
+    template <>
+    hls::Result<char32_t> get_previous_codepoint<char16_t>(const char16_t **str);
+    template <>
+    hls::Result<char32_t> get_previous_codepoint<char32_t>(const char32_t **str);
+
+    template <typename CharType>
+    hls::Result<char32_t> peek_previous_codepoint(const CharType *str)
+    {
+        return get_previous_codepoint(&str);
+    }
+
     template <typename DstType>
     size_t get_converted_codepoint_byte_size(const char32_t codepoint);
     template <>

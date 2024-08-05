@@ -3,6 +3,7 @@
 
 #include "format.hpp"
 #include "utf.hpp"
+#include <iostream>
 
 namespace hls
 {

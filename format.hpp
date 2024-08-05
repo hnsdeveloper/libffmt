@@ -10,12 +10,13 @@
 #include "result.hpp"
 #include "utf.hpp"
 #include "stream.hpp"
+#include "string.hpp"
 
 namespace hls
 {
 
-    constexpr char32_t op_format_ch = '{';
-    constexpr char32_t cl_format_ch = '}';
+    constexpr char32_t OP_FORMAT_CH = '{';
+    constexpr char32_t CL_FORMAT_CH = '}';
 
     bool isspace(char32_t codepoint)
     {
@@ -29,31 +30,62 @@ namespace hls
     }
 
     template <typename CharType>
-    Result<uint64_t> atou(const CharType *str)
+    Result<uint64_t> atou(const UTFStringView<CharType> &str_view)
     {
-        if (str)
-        {
-            auto peekresult = peek_next_codepoint(str);
-            if (!(peekresult.is_error() || !isdigit(peekresult.get_value())))
-            {
-                uint64_t number = 0;
-                for (auto result = get_next_codepoint(&str); !result.is_error() && isdigit(result.get_value());
-                     result = get_next_codepoint(&str))
-                {
-                    number = number * 10 + result.get_value();
-                }
+        if (!str_view.is_valid_view())
+            return error<uint64_t>(Error::INVALID_ARGUMENT);
 
-                return value(number);
+        uint64_t nmb = 0;
+        bool digit_started = false;
+        for (auto c : str_view)
+        {
+            if (!digit_started)
+            {
+                if ((digit_started = isdigit(c)))
+                    nmb = c - '0';
+                else
+                    return error<uint64_t>(Error::INVALID_ARGUMENT);
+            }
+            else
+            {
+                if (isdigit(c))
+                    nmb = nmb * 10 + (c - '0');
+                else
+                    break;
             }
         }
-
-        return error<uint64_t>(Error::INVALID_ARGUMENT);
+        return value(nmb);
     }
 
     template <typename CharType>
-    Result<uint64_t> atoi(const CharType *str)
+    Result<int64_t> atoi(const UTFStringView<CharType> &str_view)
     {
-        uint64_t number = 0;
+        if (!str_view.is_valid_view())
+            return error<int64_t>(Error::INVALID_ARGUMENT);
+
+        int64_t nmb = 0;
+        int64_t sign = 1;
+        bool digit_started = false;
+        for (auto c : str_view)
+        {
+            if (!digit_started)
+            {
+                if (c == '-')
+                    sign = sign * -1;
+                else if ((digit_started = isdigit(c)))
+                    nmb = c - '0';
+                else
+                    return error<int64_t>(Error::INVALID_ARGUMENT);
+            }
+            else
+            {
+                if (isdigit(c))
+                    nmb = nmb * 10 + (c - '0');
+                else
+                    break;
+            }
+        }
+        return value(nmb);
     }
 
     template <typename CharType, typename SinkImpl, typename... Args>
@@ -63,17 +95,26 @@ namespace hls
 
     // TODO: Handle error values properly
     template <typename CharType, typename SinkImpl, typename... Args>
-    Result<size_t> format_string_to_sink(UTFStringView<CharType> str, StreamSink<SinkImpl> &sink, const Args &...args)
+    Result<size_t> format_string_to_sink(const UTFStringView<CharType> &str, StreamSink<SinkImpl> &sink,
+                                         const Args &...args)
     {
         sink.open_sink();
-        for(auto it = str.begin(); it != str.end(); ++it)
+        for (auto it = str.begin(); it != str.end(); ++it)
         {
-            // TODO: IMPLEMENT
+            auto codepoint = *it;
+            if (codepoint == OP_FORMAT_CH || codepoint == CL_FORMAT_CH)
+            {
+                sink.receive_data(codepoint);
+            }
+            else
+            {
+            }
         }
         sink.close_sink();
         // TODO: Change return value
         return value(size_t(0));
     }
+
 } // namespace hls
 
 #endif

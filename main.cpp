@@ -1,6 +1,7 @@
 #include "utf.hpp"
 #include "format.hpp"
 #include "stdout.hpp"
+#include "string.hpp"
 #include <iostream>
 
 int main()
@@ -34,5 +35,5 @@ int main()
 
     hls::PrinterSink sink(hls::Encoding::UTF8);
 
-    hls::format_string_to_sink(english, sink);
+    hls::format_string_to_sink(hls::UTFStringView(english), sink);
 }
