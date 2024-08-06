@@ -24,6 +24,8 @@ namespace hls
             UTFStringViewIterator(type_const_ptr str)
             {
                 m_begin_ptr = str;
+                // Storing the address of the last codepoint before the null character. In all encodings, the null
+                // character ocupies one unit
                 m_end_ptr = reinterpret_cast<type_const_ptr>(reinterpret_cast<const byte *>(m_begin_ptr) +
                                                              utfbytelen(m_begin_ptr) - sizeof(CharType));
                 if constexpr (reverse)
@@ -138,7 +140,7 @@ namespace hls
                 if (m_curr_ptr >= m_begin_ptr && m_curr_ptr <= m_end_ptr)
                     return UTFStringView(m_curr_ptr);
 
-                return UTFStringView(reinterpret_cast<CharType *>(nullptr));
+                return UTFStringView(static_cast<const CharType *>(nullptr));
             }
 
             friend class UTFStringView;

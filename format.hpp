@@ -10,6 +10,7 @@
 #include "result.hpp"
 #include "utfstring.hpp"
 #include "stream.hpp"
+#include "findcreativename.hpp"
 #include "utfstringview.hpp"
 
 namespace hls
@@ -18,83 +19,129 @@ namespace hls
     constexpr char32_t OP_FORMAT_CH = '{';
     constexpr char32_t CL_FORMAT_CH = '}';
 
-    bool isspace(char32_t codepoint)
+    class FormatSpecifier
     {
-        // TODO: extend to tab character and other spacing characters
-        return codepoint == 0x20;
-    }
 
-    bool isdigit(char32_t codepoint)
-    {
-        return codepoint >= '0' && codepoint <= '9';
-    }
-
-    template <typename CharType>
-    Result<uint64_t> atou(const UTFStringView<CharType> &str_view)
-    {
-        if (!str_view.is_valid_view())
-            return error<uint64_t>(Error::INVALID_ARGUMENT);
-
-        uint64_t nmb = 0;
-        bool digit_started = false;
-        for (auto c : str_view)
+      public:
+        enum FormatType : uint8_t
         {
-            if (!digit_started)
+            LITERAL,  // For when what we get is a literal character instead of a format specifier
+            SPECIFIER // For when we get a format specifier
+        };
+    };
+
+    // Parses a string looking for a format specifier
+    template <typename CharType>
+    FormatSpecifier get_format_specifier(const UTFStringView<CharType> &str)
+    {
+        enum State
+        {
+            INITIAL,
+            OPENING,
+            ARGID,
+            FORMAT_SPEC,
+            CLOSING,
+            END
+        };
+
+        State state = INITIAL;
+        char32_t opchar = 0;
+        for (auto it = str.begin(); it != str.end(); ++it)
+        {
+            switch (state)
             {
-                if ((digit_started = isdigit(c)))
-                    nmb = c - '0';
-                else if (isspace(c))
-                    continue;
-                else
-                    return error<uint64_t>(Error::INVALID_ARGUMENT);
-            }
-            else
-            {
-                if (isdigit(c))
-                    nmb = nmb * 10 + (c - '0');
-                else
+                case INITIAL:
+                {
+                    if (isspace(*it))
+                    {
+                        continue;
+                    }
+                    else if (*it == OP_FORMAT_CH || *it == CL_FORMAT_CH)
+                    {
+                        state = OPENING;
+                        opchar = *it;
+                    }
+                    else
+                    {
+                        // todo: return error
+                    }
+                }
+                break;
+                case OPENING:
+                {
+                    if (isspace(*it))
+                    {
+                        continue;
+                    }
+                    else if (*it == OP_FORMAT_CH || *it == CL_FORMAT_CH)
+                    {
+                        if (*it == opchar)
+                        {
+                            // We have a literal, return...
+                        }
+                        else if (opchar == OP_FORMAT_CH && *it == CL_FORMAT_CH)
+                        {
+                            // We have an empty format specifier, use defaults
+                            // TODO: implement
+                            state = END;
+                        }
+                        else
+                        {
+                            // We have an error
+                        }
+                    }
+                    else if (isdigit(*it))
+                    {
+                        // We have an argid
+                        state = ARGID;
+                        --it;
+                    }
+                    else if (*it == ':')
+                    {
+                        // We have a format specifier
+                        state = FORMAT_SPEC;
+                    }
+                    else
+                    {
+                        // We have an error
+                    }
                     break;
+                }
+                case ARGID:
+                {
+                    // Implement format specifier
+                    while (isdigit(*(it + 1)))
+                        ++it;
+                    state = OPENING;
+                }
+                break;
+                case FORMAT_SPEC:
+                {
+                    state = CLOSING;
+                }
+                break;
+                case CLOSING:
+                {
+                    if (isspace(*it))
+                    {
+                        continue;
+                    }
+                    else if (*it == CL_FORMAT_CH)
+                    {
+                        state = END;
+                    }
+                    else
+                    {
+                        // We have an error, we must report somehow
+                    }
+                }
+                case END:
+                {
+                    it = str.end();
+                    break;
+                }
             }
         }
-        return value(nmb);
-    }
-
-    template <typename CharType>
-    Result<int64_t> atoi(const UTFStringView<CharType> &str_view)
-    {
-        if (!str_view.is_valid_view())
-            return error<int64_t>(Error::INVALID_ARGUMENT);
-
-        int64_t nmb = 0;
-        int64_t sign = 1;
-        bool digit_started = false;
-        for (auto c : str_view)
-        {
-            if (!digit_started)
-            {
-                if (c == '-')
-                    sign = sign * -1;
-                else if ((digit_started = isdigit(c)))
-                    nmb = c - '0';
-                else if (isspace(c))
-                    continue;
-                else
-                    return error<int64_t>(Error::INVALID_ARGUMENT);
-            }
-            else
-            {
-                if (isdigit(c))
-                    nmb = nmb * 10 + (c - '0');
-                else
-                    break;
-            }
-        }
-        return value(nmb);
-    }
-
-    template <typename CharType, typename SinkImpl, typename... Args>
-    Result<CharType *> format_arg_to_sink(const CharType *format_specifier, StreamSink<SinkImpl> &, const Args &...args)
-    {
     }
 
     // TODO: Handle error values properly
@@ -106,12 +153,15 @@ namespace hls
         for (auto it = str.begin(); it != str.end(); ++it)
         {
             auto codepoint = *it;
-            if (codepoint == OP_FORMAT_CH || codepoint == CL_FORMAT_CH)
+            if (codepoint != OP_FORMAT_CH || codepoint != CL_FORMAT_CH)
             {
                 sink.receive_data(codepoint);
             }
             else
             {
+                auto fs = get_format_specifier((it++).from_it());
+                while (it != str.end() || *it != OP_FORMAT_CH || *it != CL_FORMAT_CH)
+                    ++it;
             }
         }
         sink.close_sink();
