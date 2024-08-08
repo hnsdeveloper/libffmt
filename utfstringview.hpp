@@ -2,6 +2,7 @@
 #define _STRING_HPP_
 
 #include <type_traits>
+#include <iostream>
 #include "utfstring.hpp"
 
 namespace hls
@@ -150,6 +151,7 @@ namespace hls
                     ++(*this);
                     --n;
                 }
+
                 return *this;
             }
 
@@ -175,12 +177,16 @@ namespace hls
             //    return *this;
             //}
 
+            // This is quite wrong, given that a codepoint might take multiple codeunits
             size_t operator-(const UTFStringViewIterator &other)
             {
-                if (m_curr_ptr > other.m_curr_ptr)
-                    return m_curr_ptr - other.m_curr_ptr;
-
-                return other.m_curr_ptr - m_curr_ptr;
+                if (m_begin_ptr == other.m_begin_ptr)
+                {
+                    if (m_curr_ptr > other.m_curr_ptr)
+                        return m_curr_ptr - other.m_curr_ptr;
+                    return other.m_curr_ptr - m_curr_ptr;
+                }
+                return 0;
             }
 
             bool operator==(const UTFStringViewIterator &other) const

@@ -49,7 +49,6 @@ namespace hls
         bool receive_data_impl(char32_t data)
         {
             byte buffer[5] = {0, 0, 0, 0, 0};
-
             encode_char(data, (char8_t *)(buffer), 4);
             std::cout << buffer;
             return true;

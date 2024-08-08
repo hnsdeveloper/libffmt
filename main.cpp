@@ -34,6 +34,6 @@ int main()
     auto emoji2 = u8"😀🌍"; // Byte length: 8, Code point length: 2
 
     hls::PrinterSink sink(hls::Encoding::UTF8);
-
-    hls::format_string_to_sink(hls::UTFStringView(english), sink, 10);
+    int val = 10;
+    hls::format_string_to_sink(hls::UTFStringView(english), sink, val);
 }

@@ -117,7 +117,6 @@ namespace hls
                     if (*str.begin() == OP_FORMAT_CH && cp == CL_FORMAT_CH)
                         fs.set_format_type(FormatSpecifier::FormatType::SPECIFIER);
                     // We have a literal character
-                    // TODO: how many codepoints we want to advance
                     return value(str.end() - it);
                 }
                 else
@@ -133,7 +132,8 @@ namespace hls
     template <typename T>
     Result<size_t> value_to_sink(const FormatSpecifier &fs, const T &arg)
     {
-        std::cout << arg << "\n";
+        std::cout << arg;
+        return value(size_t(0));
     }
 
     template <typename SinkImpl, typename T, typename... Args>
