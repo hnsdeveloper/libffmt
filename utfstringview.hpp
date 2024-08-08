@@ -16,6 +16,7 @@ namespace hls
         template <bool reverse>
         class UTFStringViewIterator
         {
+            SET_USING_CLASS(CharType, type);
             type_const_ptr m_begin_ptr = nullptr; // Pointer to the first character of the string
             type_const_ptr m_end_ptr = nullptr;   // Pointer to the last character of the string (that not null)
             type_const_ptr m_curr_ptr = nullptr;  // Pointer to the current character the
@@ -124,6 +125,31 @@ namespace hls
                 return *this;
             }
 
+            UTFStringView from_it() const
+            {
+                if (m_curr_ptr >= m_begin_ptr && m_curr_ptr <= m_end_ptr)
+                    return UTFStringView(m_curr_ptr);
+
+                return UTFStringView(static_cast<const CharType *>(nullptr));
+            }
+
+            UTFStringViewIterator operator+(size_t n)
+            {
+                size_t i = 0;
+                auto other = *this;
+                while (i++ < n)
+                    ++other;
+                return other;
+            }
+
+            UTFStringViewIterator &operator+=(size_t n)
+            {
+                size_t i = 0;
+                while (i++ < n)
+                    ++(*this);
+                return *this;
+            }
+
             bool operator==(const UTFStringViewIterator &other) const
             {
                 return m_begin_ptr == other.m_begin_ptr && m_curr_ptr == other.m_curr_ptr &&
@@ -133,14 +159,6 @@ namespace hls
             bool operator!=(const UTFStringViewIterator &other) const
             {
                 return !(*this == other);
-            }
-
-            UTFStringView from_it() const
-            {
-                if (m_curr_ptr >= m_begin_ptr && m_curr_ptr <= m_end_ptr)
-                    return UTFStringView(m_curr_ptr);
-
-                return UTFStringView(static_cast<const CharType *>(nullptr));
             }
 
             friend class UTFStringView;
@@ -157,6 +175,10 @@ namespace hls
                 m_str = str;
                 m_string_size = utfstrlen(str);
             }
+        }
+
+        UTFStringView(iterator begin, iterator end)
+        {
         }
 
         iterator begin() const
@@ -192,6 +214,9 @@ namespace hls
 
     template <typename CharType>
     UTFStringView(CharType) -> UTFStringView<std::remove_cvref_t<std::remove_pointer_t<CharType>>>;
+
+    template <typename IteratorType>
+    UTFStringView(IteratorType, IteratorType) -> UTFStringView<typename IteratorType::type>;
 
 } // namespace hls
 

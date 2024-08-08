@@ -30,118 +30,84 @@ namespace hls
         };
     };
 
-    // Parses a string looking for a format specifier
     template <typename CharType>
-    FormatSpecifier get_format_specifier(const UTFStringView<CharType> &str)
+    Result<size_t> parse_specifier(const UTFStringView<CharType> &str)
     {
-        enum State
-        {
-            INITIAL,
-            OPENING,
-            ARGID,
-            FORMAT_SPEC,
-            CLOSING,
-            END
-        };
+        return error<size_t>(Error::INVALID_ARGUMENT);
+    }
 
-        State state = INITIAL;
-        char32_t opchar = 0;
-        for (auto it = str.begin(); it != str.end(); ++it)
+    template <typename CharType>
+    Result<size_t> parse_argid(const UTFStringView<CharType> &str)
+    {
+        uint64_t number = 0;
+        auto it = str.begin();
+        size_t steps = 0;
+        if (isdigit(*it))
         {
-            switch (state)
+            while (isdigit(*it))
             {
-                case INITIAL:
+                number = number * 10 + (*it - '0');
+                ++it;
+                ++steps;
+            }
+            return value(steps);
+        }
+        return error<size_t>(Error::INVALID_ARGUMENT);
+    }
+
+    template <typename CharType>
+    Result<size_t> parse_fs(const UTFStringView<CharType> &str)
+    {
+        if (*str.begin() == OP_FORMAT_CH || *str.begin() == CL_FORMAT_CH)
+        {
+            for (auto it = str.begin(); it != str.end(); ++it)
+            {
+                auto cp = *it;
+                if (isspace(cp))
                 {
-                    if (isspace(*it))
-                    {
-                        continue;
-                    }
-                    else if (*it == OP_FORMAT_CH || *it == CL_FORMAT_CH)
-                    {
-                        state = OPENING;
-                        opchar = *it;
-                    }
-                    else
-                    {
-                        // todo: return error
-                    }
+                    continue;
                 }
-                break;
-                case OPENING:
+                else if (isdigit(*it))
                 {
-                    if (isspace(*it))
-                    {
-                        continue;
-                    }
-                    else if (*it == OP_FORMAT_CH || *it == CL_FORMAT_CH)
-                    {
-                        if (*it == opchar)
-                        {
-                            // We have a literal, return...
-                        }
-                        else if (opchar == OP_FORMAT_CH && *it == CL_FORMAT_CH)
-                        {
-                            // We have an empty format specifier, use defaults
-                            // TODO: implement
-                            state = END;
-                        }
-                        else
-                        {
-                            // We have an error
-                        }
-                    }
-                    else if (isdigit(*it))
-                    {
-                        // We have an argid
-                        state = ARGID;
-                        --it;
-                    }
-                    else if (*it == ':')
-                    {
-                        // We have a format specifier
-                        state = FORMAT_SPEC;
-                    }
-                    else
-                    {
-                        // We have an error
-                    }
-                    break;
+                    auto argid_result = parse_argid(it.from_it());
+                    if (!argid_result.is_error())
+                        return argid_result;
+                    it += argid_result.get_value();
                 }
-                case ARGID:
+                else if (cp == ':')
                 {
-                    // Implement format specifier
-                    while (isdigit(*(it + 1)))
-                        ++it;
-                    state = OPENING;
+                    auto fsparse_result = parse_specifier(it.from_it());
+                    if (fsparse_result.is_error())
+                        return fsparse_result;
+                    it += fsparse_result.get_value();
                 }
-                break;
-                case FORMAT_SPEC:
+                else if (cp == *str.begin() || cp == CL_FORMAT_CH)
                 {
-                    state = CLOSING;
+                    // We have a literal character
+                    // TODO: how many codepoints we want to advance
+                    return value(size_t(0));
                 }
-                break;
-                case CLOSING:
+                else
                 {
-                    if (isspace(*it))
-                    {
-                        continue;
-                    }
-                    else if (*it == CL_FORMAT_CH)
-                    {
-                        state = END;
-                    }
-                    else
-                    {
-                        // We have an error, we must report somehow
-                    }
-                }
-                case END:
-                {
-                    it = str.end();
+                    // We have an error
                     break;
                 }
             }
         }
+        return error<size_t>(Error::INVALID_ARGUMENT);
+    }
+
+    template <typename T>
+    Result<size_t> value_to_sink(const FormatSpecifier &fs, const T &arg);
+
+    template <typename SinkImpl, typename T, typename... Args>
+    Result<size_t> format_arg(const FormatSpecifier &fs, size_t argn, StreamSink<SinkImpl> &sink, const T &arg,
+                              const Args &...args)
+    {
+        if (argn != 0)
+            return format_arg(fs, argn - 1, sink, args...);
+
+        return value_to_sink(fs, arg);
     }
 
     // TODO: Handle error values properly
@@ -159,9 +125,12 @@ namespace hls
             }
             else
             {
-                auto fs = get_format_specifier((it++).from_it());
-                while (it != str.end() || *it != OP_FORMAT_CH || *it != CL_FORMAT_CH)
-                    ++it;
+                FormatSpecifier fs;
+                auto parse_result = parse_fs(it.from_it());
+                if (parse_result.is_error())
+                {
+                    // TODO: Handle error
+                }
             }
         }
         sink.close_sink();
