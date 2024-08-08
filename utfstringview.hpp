@@ -24,39 +24,41 @@ namespace hls
             // Constructs an iterator at the beginning
             UTFStringViewIterator(type_const_ptr str)
             {
-                m_begin_ptr = str;
-                // Storing the address of the last codepoint before the null character. In all encodings, the null
-                // character ocupies one unit
-                m_end_ptr = reinterpret_cast<type_const_ptr>(reinterpret_cast<const byte *>(m_begin_ptr) +
-                                                             utfbytelen(m_begin_ptr) - sizeof(CharType));
                 if constexpr (reverse)
-                    m_curr_ptr = m_end_ptr;
+                {
+                    // Begin at the last character before the null character
+                    m_begin_ptr = reinterpret_cast<type_const_ptr>(reinterpret_cast<const byte *>(str) +
+                                                                   utfbytelen(str) - sizeof(CharType));
+                    m_end_ptr = str - 1;
+                }
                 else
-                    m_curr_ptr = m_begin_ptr;
+                {
+                    m_begin_ptr = str;
+                    // We willfuly ignore the null character. For all encodings, it is just one code unit.
+                    m_end_ptr = reinterpret_cast<type_const_ptr>(reinterpret_cast<const byte *>(m_begin_ptr) +
+                                                                 utfbytelen(m_begin_ptr) - sizeof(CharType));
+                }
+                m_curr_ptr = m_begin_ptr;
             }
 
             // Constructs an iterator at the end
             UTFStringViewIterator(type_const_ptr str, bool)
             {
-                m_begin_ptr = str;
-                m_end_ptr = reinterpret_cast<type_const_ptr>(reinterpret_cast<const byte *>(m_begin_ptr) +
-                                                             utfbytelen(m_begin_ptr) - sizeof(CharType));
                 if constexpr (reverse)
-                    m_curr_ptr = m_begin_ptr;
+                {
+                    // Begin at the last character before the null character
+                    m_begin_ptr = reinterpret_cast<type_const_ptr>(reinterpret_cast<const byte *>(str) +
+                                                                   utfbytelen(str) - sizeof(CharType));
+                    m_end_ptr = str - 1;
+                }
                 else
-                    m_curr_ptr = m_end_ptr;
-            }
-
-            void move_forward()
-            {
-                if (m_curr_ptr <= m_end_ptr)
-                    get_next_codepoint(&m_curr_ptr);
-            }
-
-            void move_backward()
-            {
-                if (m_curr_ptr >= m_begin_ptr)
-                    get_previous_codepoint(&m_curr_ptr);
+                {
+                    m_begin_ptr = str;
+                    // We willfuly ignore the null character. For all encodings, it is just one code unit.
+                    m_end_ptr = reinterpret_cast<type_const_ptr>(reinterpret_cast<const byte *>(m_begin_ptr) +
+                                                                 utfbytelen(m_begin_ptr) - sizeof(CharType));
+                }
+                m_curr_ptr = m_end_ptr;
             }
 
           public:
@@ -69,37 +71,36 @@ namespace hls
 
             char32_t operator*() const
             {
-                if (m_curr_ptr >= m_begin_ptr && m_curr_ptr <= m_end_ptr)
+                if (m_curr_ptr != m_end_ptr)
                     return peek_next_codepoint(m_curr_ptr).get_value();
                 return 0;
             }
 
             UTFStringViewIterator &operator--()
             {
-                if constexpr (reverse == true)
-                    move_forward();
-                else
-                    move_backward();
+                // TODO: implement
                 return *this;
             }
 
             UTFStringViewIterator operator--(int)
             {
-                auto other = *this;
-                if constexpr (reverse == true)
-                    move_forward();
-                else
-                    move_backward();
-                return other;
+                // TODO: implement
+                return *this;
             }
 
             UTFStringViewIterator &operator++()
             {
-                // If the condition is true, that means we are at the end of the string
-                if constexpr (reverse == false)
-                    move_forward();
+                if constexpr (reverse)
+                {
+                    if (m_curr_ptr > m_end_ptr)
+                        get_previous_codepoint(&m_curr_ptr);
+                }
                 else
-                    move_backward();
+                {
+                    if (m_curr_ptr < m_end_ptr)
+                        get_next_codepoint(&m_curr_ptr);
+                }
+
                 return *this;
             }
 
@@ -107,10 +108,7 @@ namespace hls
             {
                 auto other = *this;
                 // If the condition is true, that means we are at the end of the string
-                if constexpr (reverse == false)
-                    move_forward();
-                else
-                    move_backward();
+                ++(*this);
                 return other;
             }
 
@@ -127,7 +125,8 @@ namespace hls
 
             UTFStringView from_it() const
             {
-                if (m_curr_ptr >= m_begin_ptr && m_curr_ptr <= m_end_ptr)
+                // TODO: implement when it is a reverse iterator to get a string up to that point
+                if (m_curr_ptr != m_end_ptr)
                     return UTFStringView(m_curr_ptr);
 
                 return UTFStringView(static_cast<const CharType *>(nullptr));
@@ -135,19 +134,53 @@ namespace hls
 
             UTFStringViewIterator operator+(size_t n)
             {
-                size_t i = 0;
                 auto other = *this;
-                while (i++ < n)
+                while (n > 0)
+                {
+                    --n;
                     ++other;
+                }
                 return other;
             }
 
             UTFStringViewIterator &operator+=(size_t n)
             {
-                size_t i = 0;
-                while (i++ < n)
+                while (n > 0)
+                {
                     ++(*this);
+                    --n;
+                }
                 return *this;
+            }
+
+            // TODO: IMPLEMENT
+            // UTFStringViewIterator operator-(size_t n)
+            //{
+            //    auto other = *this;
+            //    while (n > 0)
+            //    {
+            //        --n;
+            //        ++other;
+            //    }
+            //    return other;
+            //}
+            //
+            // UTFStringViewIterator &operator-=(size_t n)
+            //{
+            //    while (n > 0)
+            //    {
+            //        ++(*this);
+            //        --n;
+            //    }
+            //    return *this;
+            //}
+
+            size_t operator-(const UTFStringViewIterator &other)
+            {
+                if (m_curr_ptr > other.m_curr_ptr)
+                    return m_curr_ptr - other.m_curr_ptr;
+
+                return other.m_curr_ptr - m_curr_ptr;
             }
 
             bool operator==(const UTFStringViewIterator &other) const

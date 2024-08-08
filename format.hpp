@@ -13,6 +13,8 @@
 #include "findcreativename.hpp"
 #include "utfstringview.hpp"
 
+#include <iostream>
+
 namespace hls
 {
 
@@ -21,23 +23,51 @@ namespace hls
 
     class FormatSpecifier
     {
-
       public:
         enum FormatType : uint8_t
         {
             LITERAL,  // For when what we get is a literal character instead of a format specifier
             SPECIFIER // For when we get a format specifier
         };
+
+      private:
+        FormatType m_format;
+        size_t m_argid;
+
+      public:
+        static constexpr size_t INVALID_ARGID = size_t(0) - 1;
+        // A format specifier is considered a literal until set otherwise
+        FormatSpecifier() : m_format(FormatType::LITERAL), m_argid(INVALID_ARGID) {};
+
+        void set_format_type(FormatType type)
+        {
+            m_format = type;
+        }
+        FormatType get_format_type() const
+        {
+            return m_format;
+        }
+
+        void set_argid(size_t id)
+        {
+            m_argid = id;
+            m_format = FormatType::SPECIFIER;
+        }
+
+        size_t get_argid() const
+        {
+            return m_argid;
+        }
     };
 
     template <typename CharType>
-    Result<size_t> parse_specifier(const UTFStringView<CharType> &str)
+    Result<size_t> parse_specifier(const UTFStringView<CharType> &str, FormatSpecifier &fs)
     {
         return error<size_t>(Error::INVALID_ARGUMENT);
     }
 
     template <typename CharType>
-    Result<size_t> parse_argid(const UTFStringView<CharType> &str)
+    Result<size_t> parse_argid(const UTFStringView<CharType> &str, FormatSpecifier &fs)
     {
         uint64_t number = 0;
         auto it = str.begin();
@@ -50,17 +80,18 @@ namespace hls
                 ++it;
                 ++steps;
             }
+            fs.set_argid(number);
             return value(steps);
         }
         return error<size_t>(Error::INVALID_ARGUMENT);
     }
 
     template <typename CharType>
-    Result<size_t> parse_fs(const UTFStringView<CharType> &str)
+    Result<size_t> parse_fs(const UTFStringView<CharType> &str, FormatSpecifier &fs)
     {
         if (*str.begin() == OP_FORMAT_CH || *str.begin() == CL_FORMAT_CH)
         {
-            for (auto it = str.begin(); it != str.end(); ++it)
+            for (auto it = str.begin() + 1; it != str.end(); ++it)
             {
                 auto cp = *it;
                 if (isspace(cp))
@@ -69,23 +100,25 @@ namespace hls
                 }
                 else if (isdigit(*it))
                 {
-                    auto argid_result = parse_argid(it.from_it());
+                    auto argid_result = parse_argid(it.from_it(), fs);
                     if (!argid_result.is_error())
                         return argid_result;
                     it += argid_result.get_value();
                 }
                 else if (cp == ':')
                 {
-                    auto fsparse_result = parse_specifier(it.from_it());
+                    auto fsparse_result = parse_specifier(it.from_it(), fs);
                     if (fsparse_result.is_error())
                         return fsparse_result;
                     it += fsparse_result.get_value();
                 }
                 else if (cp == *str.begin() || cp == CL_FORMAT_CH)
                 {
+                    if (*str.begin() == OP_FORMAT_CH && cp == CL_FORMAT_CH)
+                        fs.set_format_type(FormatSpecifier::FormatType::SPECIFIER);
                     // We have a literal character
                     // TODO: how many codepoints we want to advance
-                    return value(size_t(0));
+                    return value(str.end() - it);
                 }
                 else
                 {
@@ -98,14 +131,18 @@ namespace hls
     }
 
     template <typename T>
-    Result<size_t> value_to_sink(const FormatSpecifier &fs, const T &arg);
+    Result<size_t> value_to_sink(const FormatSpecifier &fs, const T &arg)
+    {
+        std::cout << arg << "\n";
+    }
 
     template <typename SinkImpl, typename T, typename... Args>
     Result<size_t> format_arg(const FormatSpecifier &fs, size_t argn, StreamSink<SinkImpl> &sink, const T &arg,
                               const Args &...args)
     {
-        if (argn != 0)
-            return format_arg(fs, argn - 1, sink, args...);
+        if constexpr (sizeof...(Args) != 0)
+            if (argn != 0)
+                return format_arg(fs, argn - 1, sink, args...);
 
         return value_to_sink(fs, arg);
     }
@@ -115,24 +152,37 @@ namespace hls
     Result<size_t> format_string_to_sink(const UTFStringView<CharType> &str, StreamSink<SinkImpl> &sink,
                                          const Args &...args)
     {
+        size_t curr_arg = 0;
         sink.open_sink();
         for (auto it = str.begin(); it != str.end(); ++it)
         {
             auto codepoint = *it;
-            if (codepoint != OP_FORMAT_CH || codepoint != CL_FORMAT_CH)
+            if (codepoint == OP_FORMAT_CH || codepoint == CL_FORMAT_CH)
             {
-                sink.receive_data(codepoint);
+                FormatSpecifier fs;
+                auto parse_result = parse_fs(it.from_it(), fs);
+                if (parse_result.is_error())
+                {
+                }
+                if (fs.get_format_type() == FormatSpecifier::FormatType::LITERAL)
+                {
+                    sink.receive_data(codepoint);
+                }
+                else if constexpr (sizeof...(Args) != 0)
+                {
+                    if (fs.get_argid() != FormatSpecifier::INVALID_ARGID)
+                        format_arg(fs, fs.get_argid(), sink, args...);
+                    else
+                        format_arg(fs, curr_arg, sink, args...);
+                }
+                it += parse_result.get_value();
             }
             else
             {
-                FormatSpecifier fs;
-                auto parse_result = parse_fs(it.from_it());
-                if (parse_result.is_error())
-                {
-                    // TODO: Handle error
-                }
+                sink.receive_data(codepoint);
             }
         }
+
         sink.close_sink();
         // TODO: Change return value
         return value(size_t(0));

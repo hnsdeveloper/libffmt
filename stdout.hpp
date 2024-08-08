@@ -52,7 +52,6 @@ namespace hls
 
             encode_char(data, (char8_t *)(buffer), 4);
             std::cout << buffer;
-            buffer[4] = 0;
             return true;
         }
 

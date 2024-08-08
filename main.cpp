@@ -7,7 +7,7 @@
 int main()
 {
     // English: "Hello, World!"
-    auto english = u8"Hello, World!"; // Byte length: 13, Code point length: 13
+    auto english = u8"Hello, World! {}"; // Byte length: 13, Code point length: 13
 
     // Japanese: "こんにちは世界"
     auto japanese = u8"こんにちは世界"; // Byte length: 21, Code point length: 7
@@ -35,5 +35,5 @@ int main()
 
     hls::PrinterSink sink(hls::Encoding::UTF8);
 
-    hls::format_string_to_sink(hls::UTFStringView(english), sink);
+    hls::format_string_to_sink(hls::UTFStringView(english), sink, 10);
 }
