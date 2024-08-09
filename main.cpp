@@ -7,7 +7,7 @@
 int main()
 {
     // English: "Hello, World!"
-    auto english = u8"Hello, World! {}"; // Byte length: 13, Code point length: 13
+    auto english = u8"The value is {} and now we have a {{"; // Byte length: 13, Code point length: 13
 
     // Japanese: "こんにちは世界"
     auto japanese = u8"こんにちは世界"; // Byte length: 21, Code point length: 7

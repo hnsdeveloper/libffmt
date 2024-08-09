@@ -117,7 +117,7 @@ namespace hls
                     if (*str.begin() == OP_FORMAT_CH && cp == CL_FORMAT_CH)
                         fs.set_format_type(FormatSpecifier::FormatType::SPECIFIER);
                     // We have a literal character
-                    return value(str.end() - it);
+                    return value(it - str.begin());
                 }
                 else
                 {
@@ -182,7 +182,6 @@ namespace hls
                 sink.receive_data(codepoint);
             }
         }
-
         sink.close_sink();
         // TODO: Change return value
         return value(size_t(0));

@@ -182,9 +182,18 @@ namespace hls
             {
                 if (m_begin_ptr == other.m_begin_ptr)
                 {
+                    auto calc_diff = [](auto a, auto b) {
+                        size_t i = 0;
+                        while (a != b)
+                        {
+                            get_next_codepoint(&a);
+                            ++i;
+                        }
+                        return i;
+                    };
                     if (m_curr_ptr > other.m_curr_ptr)
-                        return m_curr_ptr - other.m_curr_ptr;
-                    return other.m_curr_ptr - m_curr_ptr;
+                        return calc_diff(other.m_curr_ptr, m_curr_ptr);
+                    return calc_diff(m_curr_ptr, other.m_curr_ptr);
                 }
                 return 0;
             }
