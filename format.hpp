@@ -33,6 +33,10 @@ namespace hls
       private:
         FormatType m_format;
         size_t m_argid;
+        bool m_has_argid = false;
+        char32_t m_align = '<';
+        bool m_has_fill = false;
+        char32_t m_fill;
 
       public:
         static constexpr size_t INVALID_ARGID = size_t(0) - 1;
@@ -51,18 +55,62 @@ namespace hls
         void set_argid(size_t id)
         {
             m_argid = id;
+            m_has_argid = true;
             m_format = FormatType::SPECIFIER;
+        }
+
+        bool has_argid() const
+        {
+            return m_has_argid;
         }
 
         size_t get_argid() const
         {
             return m_argid;
         }
+
+        void set_align(char align)
+        {
+            if (align == '<' || align == '>' || align == '^')
+                m_align = align;
+        }
+
+        char32_t get_align() const
+        {
+            return m_align;
+        }
+
+        void set_fill(char32_t codepoint)
+        {
+            if (codepoint != OP_FORMAT_CH || codepoint != CL_FORMAT_CH)
+            {
+                m_fill = codepoint;
+                m_has_fill = true;
+            }
+        }
+
+        bool has_fill() const
+        {
+            return m_has_fill;
+        }
+
+        char32_t get_fill() const
+        {
+            return m_fill;
+        }
+
+        void set_sign(char32_t codepoint)
+        {
+        }
     };
 
     template <typename CharType>
     Result<size_t> parse_specifier(const UTFStringView<CharType> &str, FormatSpecifier &fs)
     {
+        for (auto it = str.begin(); it != str.end(); ++it)
+        {
+            auto codepoint = *it;
+        }
         return error<size_t>(Error::INVALID_ARGUMENT);
     }
 
@@ -153,6 +201,7 @@ namespace hls
                                          const Args &...args)
     {
         size_t curr_arg = 0;
+
         sink.open_sink();
         for (auto it = str.begin(); it != str.end(); ++it)
         {
@@ -163,6 +212,8 @@ namespace hls
                 auto parse_result = parse_fs(it.from_it(), fs);
                 if (parse_result.is_error())
                 {
+                    format_string_to_sink(UTFStringView(u8"INVALID FORMAT SPECIFIER"), sink);
+                    return error<size_t>(Error::UNDEFINED_ERROR);
                 }
                 if (fs.get_format_type() == FormatSpecifier::FormatType::LITERAL)
                 {
