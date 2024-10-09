@@ -32,11 +32,18 @@ namespace hls
 
       private:
         FormatType m_format;
-        size_t m_argid;
+
         bool m_has_argid = false;
+        size_t m_argid;
+
+        bool m_has_align = false;
         char32_t m_align = '<';
+
         bool m_has_fill = false;
         char32_t m_fill;
+
+        bool m_has_sign = false;
+        char32_t m_sign;
 
       public:
         static constexpr size_t INVALID_ARGID = size_t(0) - 1;
@@ -72,7 +79,10 @@ namespace hls
         void set_align(char align)
         {
             if (align == '<' || align == '>' || align == '^')
+            {
+                m_has_align = true;
                 m_align = align;
+            }
         }
 
         char32_t get_align() const
@@ -101,6 +111,10 @@ namespace hls
 
         void set_sign(char32_t codepoint)
         {
+            if (codepoint == '+' || codepoint == '-' || codepoint == ' ')
+            {
+                m_sign = codepoint;
+            }
         }
     };
 
@@ -119,17 +133,18 @@ namespace hls
     {
         uint64_t number = 0;
         auto it = str.begin();
-        size_t steps = 0;
+        size_t digits = 0;
         if (isdigit(*it))
         {
             while (isdigit(*it))
             {
                 number = number * 10 + (*it - '0');
                 ++it;
-                ++steps;
+                ++digits;
             }
             fs.set_argid(number);
-            return value(steps);
+            // We need to return on the last digit character so the outer loop finds whathever it needs to find
+            return value(digits - 1);
         }
         return error<size_t>(Error::INVALID_ARGUMENT);
     }
@@ -142,15 +157,9 @@ namespace hls
             for (auto it = str.begin() + 1; it != str.end(); ++it)
             {
                 auto cp = *it;
-                if (isspace(cp))
-                {
-                    continue;
-                }
-                else if (isdigit(*it))
+                if (isdigit(*it))
                 {
                     auto argid_result = parse_argid(it.from_it(), fs);
-                    if (!argid_result.is_error())
-                        return argid_result;
                     it += argid_result.get_value();
                 }
                 else if (cp == ':')
@@ -169,7 +178,6 @@ namespace hls
                 }
                 else
                 {
-                    // We have an error
                     break;
                 }
             }
@@ -221,10 +229,10 @@ namespace hls
                 }
                 else if constexpr (sizeof...(Args) != 0)
                 {
-                    if (fs.get_argid() != FormatSpecifier::INVALID_ARGID)
-                        format_arg(fs, fs.get_argid(), sink, args...);
+                    if (fs.has_argid() && fs.get_argid())
+                        format_arg(fs, fs.get_argid() % sizeof...(args), sink, args...);
                     else
-                        format_arg(fs, curr_arg, sink, args...);
+                        format_arg(fs, curr_arg++, sink, args...);
                 }
                 it += parse_result.get_value();
             }
