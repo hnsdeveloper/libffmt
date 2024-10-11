@@ -13,32 +13,29 @@
 #include "findcreativename.hpp"
 #include "utfstringview.hpp"
 #include "formatspecifier.hpp"
+#include "formatter.hpp"
 #include "constants.hpp"
 
 #include <iostream>
 
 namespace hls
 {
-
-    template <typename CharType>
-    Result<size_t> parse_specifier(const UTFStringView<CharType> &str, FormatSpecifier &fs)
+    template <typename T, typename SinkImpl>
+    Result<size_t> value_to_sink(const FormatSpecifier &fs, const T &arg, StreamSink<SinkImpl> &sink)
     {
-        for (auto it = str.begin(); it != str.end(); ++it)
-        {
-            auto codepoint = *it;
-            switch (codepoint)
-            {
-                case OCT_FORMAT:
-                case DEC_FORMAT:
-                case HEX_FORMAT:
-                    fs.set_integer_display_type(codepoint);
-                    break;
-                default:
-                    return error<size_t>(Error::INVALID_ARGUMENT);
-            }
-            break;
-        }
-        return value(size_t(1));
+        Formatter<std::remove_cvref_t<T>>::value_to_sink(arg, sink, fs);
+        return value(size_t(0));
+    }
+
+    template <typename SinkImpl, typename T, typename... Args>
+    Result<size_t> format_arg(const FormatSpecifier &fs, size_t argn, StreamSink<SinkImpl> &sink, const T &arg,
+                              const Args &...args)
+    {
+        if constexpr (sizeof...(Args) != 0)
+            if (argn != 0)
+                return format_arg(fs, argn - 1, sink, args...);
+
+        return value_to_sink(fs, arg, sink);
     }
 
     template <typename CharType>
@@ -60,58 +57,6 @@ namespace hls
             return value(digits - 1);
         }
         return error<size_t>(Error::INVALID_ARGUMENT);
-    }
-
-    template <typename CharType>
-    Result<size_t> parse_fs(const UTFStringView<CharType> &str, FormatSpecifier &fs)
-    {
-        if (*str.begin() == OP_FORMAT_CH || *str.begin() == CL_FORMAT_CH)
-        {
-            for (auto it = str.begin() + 1; it != str.end(); ++it)
-            {
-                auto cp = *it;
-                if (isdigit(*it))
-                {
-                    auto argid_result = parse_argid(it.from_it(), fs);
-                    it += argid_result.get_value();
-                }
-                else if (cp == ':')
-                {
-                    auto fsparse_result = parse_specifier(it.from_it(), fs);
-                    if (fsparse_result.is_error())
-                        return fsparse_result;
-                    it += fsparse_result.get_value();
-                }
-                else if (cp == *str.begin() || cp == CL_FORMAT_CH)
-                {
-                    if (*str.begin() == OP_FORMAT_CH && cp == CL_FORMAT_CH)
-                        fs.set_format_type(FormatSpecifier::FormatType::SPECIFIER);
-                    // We have a literal character
-                    return value(it - str.begin());
-                }
-                else
-                {
-                    break;
-                }
-            }
-        }
-        return error<size_t>(Error::INVALID_ARGUMENT);
-    }
-
-    template <typename T, typename SinkImpl>
-    Result<size_t> value_to_sink(const FormatSpecifier &fs, const T &arg, StreamSink<SinkImpl> &sink)
-    {
-    }
-
-    template <typename SinkImpl, typename T, typename... Args>
-    Result<size_t> format_arg(const FormatSpecifier &fs, size_t argn, StreamSink<SinkImpl> &sink, const T &arg,
-                              const Args &...args)
-    {
-        if constexpr (sizeof...(Args) != 0)
-            if (argn != 0)
-                return format_arg(fs, argn - 1, sink, args...);
-
-        return value_to_sink(fs, arg, sink);
     }
 
     // TODO: Handle error values properly

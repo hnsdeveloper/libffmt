@@ -1,4 +1,5 @@
 #include "stream.hpp"
+#include "formatspecifier.hpp"
 
 namespace hls
 {
@@ -6,14 +7,27 @@ namespace hls
     class Formatter;
 
     template <>
-    class Formatter<char *>
+    class Formatter<const char *>
     {
       public:
         template <typename SinkImpl>
-        static void value_to_sink(const char *str, StreamSink<SinkImpl> &sink)
+        static void value_to_sink(const char *str, StreamSink<SinkImpl> &sink, const FormatSpecifier &fs)
         {
             while (str && *str)
+            {
                 sink.receive_data((char32_t)(*str));
+                ++str;
+            }
+        }
+    };
+
+    template <>
+    class Formatter<char *>
+    {
+        template <typename SinkImpl>
+        static void value_to_sink(char *str, StreamSink<SinkImpl> &sink, const FormatSpecifier &fs)
+        {
+            Formatter<const char *>::value_to_sink(str, sink, fs);
         }
     };
 

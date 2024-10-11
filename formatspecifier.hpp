@@ -1,14 +1,18 @@
+#ifndef _FORMATSPECIFIER_HPP_
+#define _FORMATSPECIFIER_HPP_
+
 #ifdef __STDC_HOSTED__
 #include <stdint.h>
 #include <stddef.h>
 #include <utility>
 #endif
 
+#include "utfstringview.hpp"
 #include "constants.hpp"
+#include "result.hpp"
 
 namespace hls
 {
-
     class FormatSpecifier
     {
       public:
@@ -134,4 +138,63 @@ namespace hls
             return m_integer_type;
         }
     };
+
+    template <typename CharType>
+    Result<size_t> parse_specifier(const UTFStringView<CharType> &str, FormatSpecifier &fs)
+    {
+        for (auto it = str.begin(); it != str.end(); ++it)
+        {
+            auto codepoint = *it;
+            switch (codepoint)
+            {
+                case OCT_FORMAT:
+                case DEC_FORMAT:
+                case HEX_FORMAT:
+                    fs.set_integer_display_type(codepoint);
+                    break;
+                default:
+                    return error<size_t>(Error::INVALID_ARGUMENT);
+            }
+            break;
+        }
+        return value(size_t(1));
+    }
+
+    template <typename CharType>
+    Result<size_t> parse_fs(const UTFStringView<CharType> &str, FormatSpecifier &fs)
+    {
+        if (*str.begin() == OP_FORMAT_CH || *str.begin() == CL_FORMAT_CH)
+        {
+            for (auto it = str.begin() + 1; it != str.end(); ++it)
+            {
+                auto cp = *it;
+                if (isdigit(*it))
+                {
+                    auto argid_result = parse_argid(it.from_it(), fs);
+                    it += argid_result.get_value();
+                }
+                else if (cp == ':')
+                {
+                    auto fsparse_result = parse_specifier(it.from_it(), fs);
+                    if (fsparse_result.is_error())
+                        return fsparse_result;
+                    it += fsparse_result.get_value();
+                }
+                else if (cp == *str.begin() || cp == CL_FORMAT_CH)
+                {
+                    if (*str.begin() == OP_FORMAT_CH && cp == CL_FORMAT_CH)
+                        fs.set_format_type(FormatSpecifier::FormatType::SPECIFIER);
+                    // We have a literal character
+                    return value(it - str.begin());
+                }
+                else
+                {
+                    break;
+                }
+            }
+        }
+        return error<size_t>(Error::INVALID_ARGUMENT);
+    }
 } // namespace hls
+
+#endif
