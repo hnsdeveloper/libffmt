@@ -7,6 +7,8 @@
 #include <utility>
 #endif
 
+#include <iostream>
+
 #include "utfstringview.hpp"
 #include "constants.hpp"
 #include "result.hpp"
@@ -167,22 +169,23 @@ namespace hls
         {
             for (auto it = str.begin() + 1; it != str.end(); ++it)
             {
-                auto cp = *it;
+                auto codepoint = *it;
                 if (isdigit(*it))
                 {
                     auto argid_result = parse_argid(it.from_it(), fs);
                     it += argid_result.get_value();
                 }
-                else if (cp == ':')
+                else if (codepoint == ':')
                 {
-                    auto fsparse_result = parse_specifier(it.from_it(), fs);
+                    // We want to parse from the next character, not from : itself
+                    auto fsparse_result = parse_specifier((it + 1).from_it(), fs);
                     if (fsparse_result.is_error())
                         return fsparse_result;
                     it += fsparse_result.get_value();
                 }
-                else if (cp == *str.begin() || cp == CL_FORMAT_CH)
+                else if (codepoint == *str.begin() || codepoint == CL_FORMAT_CH)
                 {
-                    if (*str.begin() == OP_FORMAT_CH && cp == CL_FORMAT_CH)
+                    if (*str.begin() == OP_FORMAT_CH && codepoint == CL_FORMAT_CH)
                         fs.set_format_type(FormatSpecifier::FormatType::SPECIFIER);
                     // We have a literal character
                     return value(it - str.begin());
