@@ -4,8 +4,8 @@
 namespace hls
 {
 
-    template <typename SinkImpl>
-    void unsigned_printer(unsigned long long int v, StreamSink<SinkImpl> &sink, const FormatSpecifier &fs, bool first)
+    template <typename Integer, typename SinkImpl>
+    void unsigned_printer(Integer v, StreamSink<SinkImpl> &sink, const FormatSpecifier &fs, bool first)
     {
         switch (fs.get_integer_display_type())
         {
@@ -17,10 +17,35 @@ namespace hls
                 sink.receive_data(char32_t('0') + (v % 8));
                 break;
             case DEC_FORMAT:
+                if (first)
+                {
+                    if (fs.has_sign())
+                    {
+                        if (fs.get_sign() == POS_SIGN)
+                        {
+                            if (v > 0)
+                                sink.receive_data(char32_t('+'));
+                            else
+                                sink.receive_data(char32_t('-'));
+                        }
+                        else if (fs.get_sign() == SPC_SIGN)
+                        {
+                            if (v > 0)
+                                sink.receive_data(char32_t(' '));
+                            else
+                                sink.receive_data(char32_t('-'));
+                        }
+                        else if (fs.get_sign() == NEG_SIGN)
+                        {
+                            if (v < 0)
+                                sink.receive_data(char32_t('-'));
+                        }
+                    }
+                }
                 if (v / 10)
                     unsigned_printer(v / 10, sink, fs, false);
-                sink.receive_data(char32_t('0') + (v % 10));
-                ;
+                v = v < 0 ? -(v % 10) : (v % 10);
+                sink.receive_data(char32_t('0') + v);
                 break;
             case HEX_FORMAT:
                 if (first)
@@ -40,12 +65,6 @@ namespace hls
         }
     }
 
-    template <typename SinkImpl>
-    void unsigned_hex_printer(unsigned long long int v, StreamSink<SinkImpl> &sink, const FormatSpecifier &fs,
-                              bool first)
-    {
-    }
-
     template <typename T>
     class Formatter
     {
@@ -53,19 +72,18 @@ namespace hls
         template <typename SinkImpl>
         static void value_to_sink(const T &v, StreamSink<SinkImpl> &sink, const FormatSpecifier &fs)
         {
+
+            unsigned_printer(v, sink, fs, true);
+            /*
             if constexpr (std::is_signed_v<T>)
             {
             }
             else if constexpr (!std::is_signed_v<T>)
-            {
-                unsigned_printer(v, sink, fs, true);
-            }
             else
-            {
                 []<bool flag = false>() {
                     static_assert(flag, "Custom implementation needed for printing requested type.");
                 }();
-            }
+            */
         }
     };
 

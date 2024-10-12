@@ -36,8 +36,8 @@ namespace hls
         bool m_has_fill = false;
         char32_t m_fill;
 
-        bool m_has_sign = false;
-        char32_t m_sign;
+        bool m_has_sign = true;
+        char32_t m_sign = NEG_SIGN;
 
         char32_t m_integer_type;
 
@@ -109,8 +109,14 @@ namespace hls
         {
             if (codepoint == '+' || codepoint == '-' || codepoint == ' ')
             {
+                m_has_sign = true;
                 m_sign = codepoint;
             }
+        }
+
+        bool has_sign() const
+        {
+            return m_has_sign;
         }
 
         char32_t get_sign() const

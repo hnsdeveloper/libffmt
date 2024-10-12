@@ -33,8 +33,8 @@ int main()
 
     hls::PrinterSink sink(hls::Encoding::UTF8);
     // English: "Hello, World!"
-    auto english = u8"The string is '{:x}'"; // Byte length: 13, Code point length: 13
+    auto english = u8"The string is '{:d}'"; // Byte length: 13, Code point length: 13
     const char *str = "Test string.";
-    unsigned int v = 16;
+    int v = -2147483648;
     hls::format_string_to_sink(hls::UTFStringView(english), sink, v);
 }
