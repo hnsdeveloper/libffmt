@@ -457,11 +457,11 @@ namespace hls
     }
 
     template <>
-    hls::Result<size_t> encode_char<char8_t>(char32_t codepoint, char8_t *dest, size_t byte_size)
+    size_t encode_char<char8_t>(char32_t codepoint, char8_t *dest, size_t byte_size)
     {
         size_t needed_bytes = get_converted_codepoint_byte_size<char8_t>(codepoint);
         if (needed_bytes > byte_size || needed_bytes == 0)
-            return error<size_t>(Error::UNDEFINED_ERROR);
+            return 0;
 
         size_t byte = needed_bytes - 1;
         size_t i = 0;
@@ -484,15 +484,15 @@ namespace hls
                 dest[0] = dest[0] | ((needed_bytes == 1) * (codepoint & 0x7F));
         }
 
-        return value(needed_bytes);
+        return needed_bytes;
     }
 
     template <>
-    hls::Result<size_t> encode_char<char16_t>(char32_t codepoint, char16_t *dest, size_t byte_size)
+    size_t encode_char<char16_t>(char32_t codepoint, char16_t *dest, size_t byte_size)
     {
         size_t needed_bytes = get_converted_codepoint_byte_size<char16_t>(codepoint);
         if (needed_bytes > byte_size || needed_bytes == 0)
-            return error<size_t>(Error::UNDEFINED_ERROR);
+            return 0;
 
         switch (needed_bytes)
         {
@@ -506,23 +506,23 @@ namespace hls
                 break;
         }
 
-        return value(needed_bytes);
+        return needed_bytes;
     }
 
     template <>
-    hls::Result<size_t> encode_char<char32_t>(char32_t codepoint, char32_t *dest, size_t byte_size)
+    size_t encode_char<char32_t>(char32_t codepoint, char32_t *dest, size_t byte_size)
     {
         if (byte_size < sizeof(char32_t))
-            return error<size_t>(Error::UNDEFINED_ERROR);
+            return 0;
 
         *dest = codepoint;
-        return value(sizeof(char32_t));
+        return sizeof(char32_t);
     }
 
     template <>
     size_t get_converted_codepoint_byte_size<char8_t>(const char32_t codepoint)
     {
-        if (codepoint <= 0x10FFFF)
+        if (codepoint < INVALID_CODEPOINT)
         {
             if (codepoint <= 0x7F)
                 return 1;
@@ -539,7 +539,7 @@ namespace hls
     template <>
     size_t get_converted_codepoint_byte_size<char16_t>(const char32_t codepoint)
     {
-        if (codepoint <= 0x10FFFF)
+        if (codepoint < INVALID_CODEPOINT)
             return codepoint < 0x10000 ? sizeof(char16_t) : sizeof(char16_t) * 2;
         return 0;
     }
@@ -547,7 +547,7 @@ namespace hls
     template <>
     size_t get_converted_codepoint_byte_size<char32_t>(const char32_t codepoint)
     {
-        if (codepoint <= 0x10FFFF)
+        if (codepoint < INVALID_CODEPOINT)
             return sizeof(char32_t);
         return 0;
     }

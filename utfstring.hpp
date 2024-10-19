@@ -45,13 +45,13 @@ namespace hls
     size_t get_converted_codepoint_byte_size<char32_t>(const char32_t codepoint);
 
     template <typename CharType>
-    hls::Result<size_t> encode_char(char32_t codepoint, CharType *dest, size_t byte_size);
+    size_t encode_char(char32_t codepoint, CharType *dest, size_t byte_size);
     template <>
-    hls::Result<size_t> encode_char<char8_t>(char32_t codepoint, char8_t *dest, size_t byte_size);
+    size_t encode_char<char8_t>(char32_t codepoint, char8_t *dest, size_t byte_size);
     template <>
-    hls::Result<size_t> encode_char<char16_t>(char32_t codepoint, char16_t *dest, size_t byte_size);
+    size_t encode_char<char16_t>(char32_t codepoint, char16_t *dest, size_t byte_size);
     template <>
-    hls::Result<size_t> encode_char<char32_t>(char32_t codepoint, char32_t *dest, size_t byte_size);
+    size_t encode_char<char32_t>(char32_t codepoint, char32_t *dest, size_t byte_size);
 
     bool do_buffers_overlap(const void *buffer_a, size_t buffer_a_size, const void *buffer_b, size_t buffer_b_size);
 
@@ -139,33 +139,39 @@ namespace hls
     }
 
     template <typename SrcCharType, typename DstCharType>
-    hls::Result<DstCharType *> encode_utfstr(const SrcCharType *src, DstCharType *dest, size_t dest_byte_size)
+    DstCharType *encode_utfstr(const SrcCharType *src, DstCharType *dest, size_t dest_byte_size)
     {
-        if (!src || !dest || !dest_byte_size || !is_valid_utf_sequence(src))
-            return error<DstCharType *>(Error::INVALID_ARGUMENT);
+        if (!src || !dest || dest_byte_size < sizeof(DstCharType) || !is_valid_utf_sequence(src))
+            return nullptr;
 
         size_t bytelen = utfbytelen(src);
         if (do_buffers_overlap(src, bytelen, dest, dest_byte_size))
-            return error<DstCharType *>(Error::INVALID_ARGUMENT);
-
+            return nullptr;
         auto retval = dest;
         while (true)
         {
-            char32_t cp = get_next_codepoint(&src).get_value();
-            size_t sz = get_converted_codepoint_byte_size<DstCharType>(cp);
-            if (sz >= dest_byte_size || cp == 0)
+            char32_t codepoint = get_next_codepoint(&src);
+            if (codepoint == INVALID_CODEPOINT)
             {
-                // No space for the null character if we keep encoding, thus we add it manually and finish
-                // If we only have 7 bytes available, we can't encode a nullbyte on utf32
-                // TODO: FIX BUG
-                *((unsigned char *)(dest)) = 0;
-                return value(retval);
+                *dest = 0;
+                return nullptr;
             }
-            encode_char(cp, dest, dest_byte_size).get_value();
-            dest = reinterpret_cast<DstCharType *>((reinterpret_cast<unsigned char *>(dest) + sz));
-            dest_byte_size = dest_byte_size - sz;
+            size_t encoded_size = get_converted_codepoint_byte_size<DstCharType>(codepoint);
+
+            if (dest_byte_size >= sizeof(DstCharType) + encoded_size)
+            {
+                encode_char(codepoint, dest, dest_byte_size);
+                dest_byte_size -= encoded_size;
+                if (codepoint == 0)
+                    break;
+            }
+            else
+            {
+                *dest = 0;
+                break;
+            }
         }
-        return value(retval);
+        return retval;
     }
 
 } // namespace hls
