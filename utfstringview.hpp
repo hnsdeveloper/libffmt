@@ -73,7 +73,7 @@ namespace hls
             char32_t operator*() const
             {
                 if (m_curr_ptr != m_end_ptr)
-                    return peek_next_codepoint(m_curr_ptr).get_value();
+                    return peek_next_codepoint(m_curr_ptr);
                 return 0;
             }
 

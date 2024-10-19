@@ -18,34 +18,21 @@ namespace hls
         UTF32
     };
 
-    template <typename CharType>
-    hls::Result<char32_t> get_next_codepoint(const CharType **str);
-    template <>
-    hls::Result<char32_t> get_next_codepoint<char8_t>(const char8_t **str);
-    template <>
-    hls::Result<char32_t> get_next_codepoint<char16_t>(const char16_t **str);
-    template <>
-    hls::Result<char32_t> get_next_codepoint<char32_t>(const char32_t **str);
+    constexpr char32_t INVALID_CODEPOINT = 0x10FFFF + 1;
 
     template <typename CharType>
-    hls::Result<char32_t> peek_next_codepoint(const CharType *str)
+    char32_t get_next_codepoint(const CharType **str);
+    template <>
+    char32_t get_next_codepoint<char8_t>(const char8_t **str);
+    template <>
+    char32_t get_next_codepoint<char16_t>(const char16_t **str);
+    template <>
+    char32_t get_next_codepoint<char32_t>(const char32_t **str);
+
+    template <typename CharType>
+    char32_t peek_next_codepoint(const CharType *str)
     {
         return get_next_codepoint(&str);
-    }
-
-    template <typename CharType>
-    hls::Result<char32_t> get_previous_codepoint(const CharType **str);
-    template <>
-    hls::Result<char32_t> get_previous_codepoint<char8_t>(const char8_t **str);
-    template <>
-    hls::Result<char32_t> get_previous_codepoint<char16_t>(const char16_t **str);
-    template <>
-    hls::Result<char32_t> get_previous_codepoint<char32_t>(const char32_t **str);
-
-    template <typename CharType>
-    hls::Result<char32_t> peek_previous_codepoint(const CharType *str)
-    {
-        return get_previous_codepoint(&str);
     }
 
     template <typename DstType>
@@ -96,12 +83,10 @@ namespace hls
         {
             while (true)
             {
-                auto result = get_next_codepoint(&str);
-                if (result.is_error())
-                    return 0;
-
-                // Null value
-                if (result.get_value() == 0)
+                auto codepoint = get_next_codepoint(&str);
+                if (codepoint == INVALID_CODEPOINT)
+                    return false;
+                if (codepoint == 0)
                     break;
                 ++i;
             }
@@ -117,11 +102,10 @@ namespace hls
         {
             while (true)
             {
-                auto result = get_next_codepoint(&str);
-                if (result.is_error())
-                    return 0;
-                // Null value
-                if (result.get_value() == 0)
+                auto codepoint = get_next_codepoint(&str);
+                if (codepoint == INVALID_CODEPOINT)
+                    return false;
+                if (codepoint == 0)
                     break;
             }
         }
@@ -139,16 +123,16 @@ namespace hls
     }
 
     template <typename CharType>
-    bool is_valid_utf_sequence(const CharType *src)
+    bool is_valid_utf_sequence(const CharType *str)
     {
-        if (!src)
+        if (!str)
             return false;
         while (true)
         {
-            auto result = get_next_codepoint(&src);
-            if (result.is_error())
+            auto codepoint = get_next_codepoint(&str);
+            if (codepoint == INVALID_CODEPOINT)
                 return false;
-            if (result.get_value() == 0)
+            if (codepoint == 0)
                 break;
         }
         return true;

@@ -406,7 +406,7 @@ namespace hls
 
     // Assumes UTF-8 encoding for char8_t
     template <>
-    hls::Result<char32_t> get_next_codepoint<char8_t>(const char8_t **str)
+    char32_t get_next_codepoint<char8_t>(const char8_t **str)
     {
         uint32_t st = UTF8_ACCEPT;
         char32_t codepoint = 0;
@@ -418,20 +418,20 @@ namespace hls
                 break;
         }
         if (st == UTF8_ACCEPT)
-            return hls::value(codepoint);
+            return codepoint;
 
-        return error<char32_t>(hls::Error::UNDEFINED_ERROR);
+        return INVALID_CODEPOINT;
     }
 
     // Assumes UTF-16 encoding for char16_t
     template <>
-    hls::Result<char32_t> get_next_codepoint<char16_t>(const char16_t **str)
+    char32_t get_next_codepoint<char16_t>(const char16_t **str)
     {
         if (str)
         {
             char16_t w1 = *((*str)++);
             if (w1 < 0xD800 || w1 > 0xDFFF)
-                return hls::value(static_cast<char32_t>(w1));
+                return static_cast<char32_t>(w1);
 
             if (w1 >= 0xD800 && w1 <= 0xDBFF)
             {
@@ -439,23 +439,21 @@ namespace hls
                 if (w2 >= 0xDC00 && w2 <= 0xDFFF)
                 {
                     char32_t result = ((((char32_t)(w1) & 0x3FF) << 10) | (w2 & 0x3FF)) + 0x10000;
-                    return value(result);
+                    return result;
                 }
             }
         }
-        return error<char32_t>(Error::UNDEFINED_ERROR);
+        return INVALID_CODEPOINT;
     }
 
     // Assumes UTF-32 encoding for char32_t
     template <>
-    hls::Result<char32_t> get_next_codepoint<char32_t>(const char32_t **str)
+    char32_t get_next_codepoint<char32_t>(const char32_t **str)
     {
         if (str && *str)
-        {
-            return value(*((*str)++));
-        }
+            return *((*str)++);
 
-        return error<char32_t>(Error::UNDEFINED_ERROR);
+        return INVALID_CODEPOINT;
     }
 
     template <>
